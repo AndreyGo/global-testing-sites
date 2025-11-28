@@ -566,3 +566,54 @@ Crontab:
 
 ```
 ```
+
+## Реализация MVP
+
+В репозитории добавлен минимальный работающий скелет системы на FastAPI, SQLModel и Typer, покрывающий требования ТЗ:
+
+- **API (FastAPI)**: управление проектами, окружениями, целями, запусками сканов, анализом HTML и созданием тестовых сущностей.
+- **Сканер (Playwright-ready)**: асинхронный сбор DOM через `httpx` с последующим сохранением страниц и базовой статистики; легко заменить на Playwright при необходимости.
+- **AI-анализ**: локальный `DOMAIAnalyzer` оценивает DOM, выделяет точки тестирования (формы, кнопки, ссылки) и сохраняет рекомендации.
+- **Тест-раннер**: формирует запуски suite’ов, исполняет smoke-check тесты и фиксирует результаты.
+- **CLI**: команды для инициализации БД, запуска сканов, выполнения suite’ов и вывода примера Cron-задания.
+
+### Быстрый старт
+
+1. Установите зависимости:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Инициализируйте БД SQLite:
+   ```bash
+   python -m app.cli init
+   ```
+3. Запустите API (например, на 8000 порту):
+   ```bash
+   uvicorn app.main:app --reload
+   ```
+4. Создайте проект/окружение/target через API, затем выполните скан:
+   ```bash
+   http POST :8000/projects name="Demo"
+   http POST :8000/environments name="prod" base_url="https://example.com" project_id==1
+   http POST :8000/targets name="Example" base_url="https://example.com" project_id==1 environment_id==1
+   http POST :8000/scan/1
+   ```
+5. Запросите AI-анализ любой сохранённой страницы:
+   ```bash
+   http POST :8000/ai/analyze/1
+   ```
+6. Запустите suite из Cron/CLI:
+   ```bash
+   python -m app.cli run-suite-cmd --suite-id=1 --environment-id=1 --trigger=cron
+   ```
+
+### Основные файлы
+
+- `app/main.py` — FastAPI-приложение и маршруты.
+- `app/models.py` — модели домена (проекты, окружения, таргеты, сканы, страницы, AI-конфиг, тестовые сущности).
+- `app/scanner.py` — сбор DOM и страниц.
+- `app/ai.py` — эвристический анализ HTML и генерация точек тестирования.
+- `app/test_runner.py` — выполнение suite’ов и простые smoke-check тесты.
+- `app/cli.py` — Typer-команды для Cron/скриптов.
+
+MVP использует SQLite и локальный анализ DOM; при необходимости подключите Playwright и внешнего AI-провайдера, добавив реальный HTTP/gRPC-клиент в `app/ai.py` и расширив `app/scanner.py`.
